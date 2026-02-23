@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+    <application
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.FootballTracker">
+
+        <!-- Connect IQ App UUID (SAME as watch app!) -->
+        <meta-data android:name="com.garmin.android.connectiq.app_uuid"
+            android:value="3ac30dc4-ec32-42dd-994f-2bf038aec404" />
+
+        <!-- Connect IQ App Type -->
+        <meta-data android:name="com.garmin.android.connectiq.app_type"
+            android:value="com.garmin.android.connectiq.app.COMPANION_APP" />
+
+        <meta-data android:name="com.garmin.android.connectiq.connectionType"
+            android:value="TETHERED" />
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:theme="@style/Theme.FootballTracker">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+
+</manifest>

@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">FootballTracker</string>
+    <string name="sendMessage">Send Test Message</string>
+</resources>
