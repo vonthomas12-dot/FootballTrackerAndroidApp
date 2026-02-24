@@ -93,7 +93,7 @@ fun MatchListScreen(
 
                         Text(text = "Fekete (A):", style = MaterialTheme.typography.labelLarge)
                         Text(
-                            text = teamAPlayers.joinToString { it.player.name },
+                            text = teamAPlayers.joinToString { it.player.name + " (" + it.matchPlayer.goals + ")" },
                             style = MaterialTheme.typography.bodySmall
                         )
                         
@@ -101,7 +101,7 @@ fun MatchListScreen(
                         
                         Text(text = "Fehér (B):", style = MaterialTheme.typography.labelLarge)
                         Text(
-                            text = teamBPlayers.joinToString { it.player.name },
+                            text = teamBPlayers.joinToString { it.player.name + " (" + it.matchPlayer.goals + ")" },
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
