@@ -12,7 +12,8 @@ import androidx.compose.ui.unit.dp
 fun PlayerScreen(
     teamA: List<String>,
     teamB: List<String>,
-    onAddPlayer: (String, String) -> Unit
+    onAddPlayerToTeam: (String, String) -> Unit,
+    onAddPlayerToDb: (String) -> Unit
 ) {
     var playerName by remember { mutableStateOf("") }
     var selectedTeam by remember { mutableStateOf("A") }
@@ -28,7 +29,7 @@ fun PlayerScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        Text("Select Team")
+        Text("Select Team for current match")
 
         Row(verticalAlignment = Alignment.CenterVertically) {
 
@@ -48,29 +49,45 @@ fun PlayerScreen(
         }
 
         Spacer(modifier = Modifier.height(16.dp))
+        
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Button(
+                onClick = {
+                    if (playerName.isNotBlank()) {
+                        onAddPlayerToTeam(playerName, selectedTeam)
+                        playerName = ""
+                    }
+                },
+                modifier = Modifier.weight(1f)
+            ) {
+                Text("Add to Match")
+            }
+            
+            Spacer(modifier = Modifier.width(8.dp))
 
-        Button(
-            onClick = {
-                if (playerName.isNotBlank()) {
-                    onAddPlayer(playerName, selectedTeam)
-                    playerName = ""
-                }
-            },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("Add Player")
+            Button(
+                onClick = {
+                    if (playerName.isNotBlank()) {
+                        onAddPlayerToDb(playerName)
+                        playerName = ""
+                    }
+                },
+                modifier = Modifier.weight(1f)
+            ) {
+                Text("Add Player")
+            }
         }
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        Text("Fekete", style = MaterialTheme.typography.titleMedium)
+        Text("Fekete (Team A)", style = MaterialTheme.typography.titleMedium)
         teamA.forEach {
             Text(it, modifier = Modifier.padding(4.dp))
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        Text("Fehér", style = MaterialTheme.typography.titleMedium)
+        Text("Fehér (Team B)", style = MaterialTheme.typography.titleMedium)
         teamB.forEach {
             Text(it, modifier = Modifier.padding(4.dp))
         }

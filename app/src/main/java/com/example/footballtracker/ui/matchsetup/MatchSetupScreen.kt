@@ -43,17 +43,20 @@ fun MatchSetupScreen(
                 PlayerScreen(
                     teamA = teamA,
                     teamB = teamB,
-                    onAddPlayer = { name, team ->
-                        viewModel.addPlayer(name, team)
+                    onAddPlayerToTeam = { name, team ->
+                        viewModel.addPlayerToTeam(name, team)
+                    },
+                    onAddPlayerToDb = { name ->
+                        viewModel.addPlayerToDb(name)
                     }
                 )
 
                 Spacer(modifier = Modifier.height(24.dp))
 
                 Button(
-                    onClick = { viewModel.sendTeamsToWatch() }
+                    onClick = { viewModel.saveMatchAndSendToWatch() }
                 ) {
-                    Text("Send to Watch")
+                    Text("Save Match & Send to Watch")
                 }
             }
         }

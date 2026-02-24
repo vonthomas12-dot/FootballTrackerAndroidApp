@@ -3,6 +3,9 @@ package com.example.footballtracker.ui.matchsetup
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.footballtracker.connectiq.ConnectIQManager
+import com.example.footballtracker.data.local.entity.MatchEntity
+import com.example.footballtracker.data.local.entity.PlayerEntity
+import com.example.footballtracker.data.repository.MatchRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -10,7 +13,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class MatchSetupViewModel(
-    private val connectIQManager: ConnectIQManager
+    private val connectIQManager: ConnectIQManager,
+    private val repository: MatchRepository
 ) : ViewModel() {
 
     private val _teamA = MutableStateFlow<List<String>>(emptyList())
@@ -19,11 +23,17 @@ class MatchSetupViewModel(
     private val _teamB = MutableStateFlow<List<String>>(emptyList())
     val teamB: StateFlow<List<String>> = _teamB.asStateFlow()
 
-    fun addPlayer(name: String, team: String) {
+    fun addPlayerToTeam(name: String, team: String) {
         if (team == "A") {
             _teamA.value = _teamA.value + name
         } else {
             _teamB.value = _teamB.value + name
+        }
+    }
+
+    fun addPlayerToDb(name: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.addPlayer(PlayerEntity(name = name, team = ""))
         }
     }
 
@@ -35,8 +45,21 @@ class MatchSetupViewModel(
         }
     }
 
-    fun sendTeamsToWatch() {
+    fun saveMatchAndSendToWatch() {
         viewModelScope.launch(Dispatchers.IO) {
+            val match = MatchEntity(
+                teamAName = "Fekete",
+                teamBName = "Fehér",
+                teamAScore = 0,
+                teamBScore = 0,
+                timestamp = System.currentTimeMillis()
+            )
+            
+            val playersA = _teamA.value.map { PlayerEntity(matchOwnerId = 0, name = it, team = "A") }
+            val playersB = _teamB.value.map { PlayerEntity(matchOwnerId = 0, name = it, team = "B") }
+            
+            repository.saveMatch(match, playersA + playersB)
+
             connectIQManager.sendTeams(
                 teamA = _teamA.value,
                 teamB = _teamB.value
