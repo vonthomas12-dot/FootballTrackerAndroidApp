@@ -10,6 +10,6 @@ class MatchListViewModel(
     repository: MatchRepository
 ) : ViewModel() {
 
-    val matches = repository.getAllMatches()
+    val matches = repository.getAllMatchesWithPlayers()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 }

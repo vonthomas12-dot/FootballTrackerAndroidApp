@@ -34,10 +34,6 @@ fun PlayersScreen(
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(text = player.name, style = MaterialTheme.typography.titleLarge)
-                    Text(
-                        text = "Team: ${if (player.team == "A") "Fekete" else "Fehér"}",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
                     Text(text = "Goals: ${player.goals}", style = MaterialTheme.typography.bodyMedium)
                 }
             }

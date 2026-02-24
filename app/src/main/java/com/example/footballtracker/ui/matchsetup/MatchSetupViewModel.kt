@@ -33,7 +33,7 @@ class MatchSetupViewModel(
 
     fun addPlayerToDb(name: String) {
         viewModelScope.launch(Dispatchers.IO) {
-            repository.addPlayer(PlayerEntity(name = name, team = ""))
+            repository.addPlayer(PlayerEntity(name = name))
         }
     }
 
@@ -55,10 +55,7 @@ class MatchSetupViewModel(
                 timestamp = System.currentTimeMillis()
             )
             
-            val playersA = _teamA.value.map { PlayerEntity(matchOwnerId = 0, name = it, team = "A") }
-            val playersB = _teamB.value.map { PlayerEntity(matchOwnerId = 0, name = it, team = "B") }
-            
-            repository.saveMatch(match, playersA + playersB)
+            repository.saveMatch(match, _teamA.value, _teamB.value)
 
             connectIQManager.sendTeams(
                 teamA = _teamA.value,
