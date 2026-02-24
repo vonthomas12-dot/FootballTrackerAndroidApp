@@ -8,8 +8,10 @@ import com.example.footballtracker.data.local.entity.PlayerEntity
 import com.example.footballtracker.data.repository.MatchRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 class MatchSetupViewModel(
@@ -17,17 +19,20 @@ class MatchSetupViewModel(
     private val repository: MatchRepository
 ) : ViewModel() {
 
-    private val _teamA = MutableStateFlow<List<String>>(emptyList())
-    val teamA: StateFlow<List<String>> = _teamA.asStateFlow()
+    private val _teamA = MutableStateFlow<List<PlayerEntity>>(emptyList())
+    val teamA: StateFlow<List<PlayerEntity>> = _teamA.asStateFlow()
 
-    private val _teamB = MutableStateFlow<List<String>>(emptyList())
-    val teamB: StateFlow<List<String>> = _teamB.asStateFlow()
+    private val _teamB = MutableStateFlow<List<PlayerEntity>>(emptyList())
+    val teamB: StateFlow<List<PlayerEntity>> = _teamB.asStateFlow()
 
-    fun addPlayerToTeam(name: String, team: String) {
+    val allPlayers: StateFlow<List<PlayerEntity>> = repository.getAllPlayers()
+        .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+
+    fun addPlayersToTeam(players: List<PlayerEntity>, team: String) {
         if (team == "A") {
-            _teamA.value = _teamA.value + name
+            _teamA.value = (_teamA.value + players).distinctBy { it.id }
         } else {
-            _teamB.value = _teamB.value + name
+            _teamB.value = (_teamB.value + players).distinctBy { it.id }
         }
     }
 
@@ -37,11 +42,11 @@ class MatchSetupViewModel(
         }
     }
 
-    fun removePlayer(name: String, team: String) {
+    fun removePlayer(player: PlayerEntity, team: String) {
         if (team == "A") {
-            _teamA.value = _teamA.value - name
+            _teamA.value = _teamA.value - player
         } else {
-            _teamB.value = _teamB.value - name
+            _teamB.value = _teamB.value - player
         }
     }
 
@@ -54,12 +59,15 @@ class MatchSetupViewModel(
                 teamBScore = 0,
                 timestamp = System.currentTimeMillis()
             )
-            
-            repository.saveMatch(match, _teamA.value, _teamB.value)
+
+            val teamAPlayerNames = _teamA.value.map { it.name }
+            val teamBPlayerNames = _teamB.value.map { it.name }
+
+            repository.saveMatch(match, teamAPlayerNames, teamBPlayerNames)
 
             connectIQManager.sendTeams(
-                teamA = _teamA.value,
-                teamB = _teamB.value
+                teamA = teamAPlayerNames,
+                teamB = teamBPlayerNames
             )
         }
     }
