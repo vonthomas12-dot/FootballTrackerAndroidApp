@@ -42,9 +42,6 @@ fun MatchSetupScreen(
                 .padding(16.dp)
         ) {
             item {
-                Text("Add Players to Match", style = MaterialTheme.typography.titleLarge)
-                Spacer(modifier = Modifier.height(16.dp))
-
                 Text("Create New Player", style = MaterialTheme.typography.titleMedium)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     OutlinedTextField(

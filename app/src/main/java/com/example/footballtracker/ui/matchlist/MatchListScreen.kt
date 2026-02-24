@@ -12,6 +12,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.footballtracker.data.local.entity.MatchEntity
 import com.example.footballtracker.data.local.entity.MatchWithPlayersAndTeam
+import java.text.SimpleDateFormat
+import java.util.*
 
 @Composable
 fun MatchListScreen(
@@ -46,6 +48,8 @@ fun MatchListScreen(
         )
     }
 
+    val dateFormatter = remember { SimpleDateFormat("yyyy.MM.dd", Locale.getDefault()) }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -53,6 +57,7 @@ fun MatchListScreen(
     ) {
         items(matches) { matchWithPlayers ->
             val match = matchWithPlayers.match
+            val formattedDate = dateFormatter.format(Date(match.timestamp))
 
             Card(
                 modifier = Modifier
@@ -62,10 +67,23 @@ fun MatchListScreen(
             ) {
                 Box(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            text = "${match.teamAName} vs ${match.teamBName}",
-                            style = MaterialTheme.typography.titleMedium
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(end = 40.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "${match.teamAName} vs ${match.teamBName}",
+                                style = MaterialTheme.typography.titleMedium,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Text(
+                                text = formattedDate,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
                         Text(text = "Score: ${match.teamAScore} - ${match.teamBScore}")
                         
                         Spacer(modifier = Modifier.height(8.dp))

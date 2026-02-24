@@ -8,7 +8,7 @@ class MatchRepository(
     private val matchDao: MatchDao
 ) {
 
-    suspend fun saveMatch(match: MatchEntity, teamAPlayerNames: List<String>, teamBPlayerNames: List<String>) {
+    suspend fun saveMatch(match: MatchEntity, teamAPlayerNames: List<String>, teamBPlayerNames: List<String>): Long {
         val matchId = matchDao.insertMatch(match)
         
         val matchPlayers = mutableListOf<MatchPlayerEntity>()
@@ -28,6 +28,30 @@ class MatchRepository(
         }
         
         matchDao.insertMatchPlayers(matchPlayers)
+        return matchId
+    }
+
+    suspend fun updateMatchResult(
+        matchId: Long, 
+        scoreA: Int, 
+        scoreB: Int, 
+        playersWithGoals: List<Pair<String, Int>>
+    ) {
+        // Update match scores
+        matchDao.updateMatchScore(matchId, scoreA, scoreB)
+
+        // Update each player's goals for this match and their total goals
+        playersWithGoals.forEach { (name, goalsInMatch) ->
+            val player = matchDao.getPlayerByName(name)
+            if (player != null) {
+                // Update match-specific goals in the junction table
+                matchDao.updateMatchPlayerGoals(matchId, player.id, goalsInMatch)
+
+                // Update total player goals in the players table
+                val updatedPlayer = player.copy(goals = player.goals + goalsInMatch)
+                matchDao.updatePlayer(updatedPlayer)
+            }
+        }
     }
 
     suspend fun addPlayer(player: PlayerEntity) {

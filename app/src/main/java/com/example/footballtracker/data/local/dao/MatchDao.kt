@@ -20,12 +20,18 @@ interface MatchDao {
     @Delete
     suspend fun deleteMatch(match: MatchEntity)
 
+    @Query("UPDATE matches SET teamAScore = :scoreA, teamBScore = :scoreB WHERE matchId = :matchId")
+    suspend fun updateMatchScore(matchId: Long, scoreA: Int, scoreB: Int)
+
     // -------------------
     // PLAYERS
     // -------------------
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPlayer(player: PlayerEntity): Long
+
+    @Update
+    suspend fun updatePlayer(player: PlayerEntity)
 
     @Query("SELECT * FROM players")
     fun getAllPlayers(): Flow<List<PlayerEntity>>
@@ -39,6 +45,9 @@ interface MatchDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMatchPlayers(matchPlayers: List<MatchPlayerEntity>)
+
+    @Query("UPDATE match_players SET goals = :goals WHERE matchId = :matchId AND playerId = :playerId")
+    suspend fun updateMatchPlayerGoals(matchId: Long, playerId: Long, goals: Int)
 
     // -------------------
     // RELATIONS

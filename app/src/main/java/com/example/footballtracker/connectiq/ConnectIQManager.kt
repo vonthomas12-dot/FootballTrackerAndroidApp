@@ -15,7 +15,7 @@ class ConnectIQManager(
 ) {
 
     private val connectIQ =
-        ConnectIQ.getInstance(context, ConnectIQ.IQConnectType.TETHERED)
+        ConnectIQ.getInstance(context, ConnectIQ.IQConnectType.WIRELESS)
 
     private val appId = "3ac30dc4-ec32-42dd-994f-2bf038aec404"
     private val iqApp = IQApp(appId)
@@ -23,12 +23,6 @@ class ConnectIQManager(
     private var onMessageReceived: ((Any?) -> Unit)? = null
 
     init {
-        try {
-            // Default Garmin Simulator port is 1234
-            connectIQ.setAdbPort(7381)
-        } catch (e: Exception) {
-            Log.e("ConnectIQ", "Error setting ADB port", e)
-        }
         connectIQ.initialize(context, true, object : ConnectIQ.ConnectIQListener {
             override fun onSdkReady() {
                 Log.d("ConnectIQ", "SDK Ready")
@@ -85,6 +79,7 @@ class ConnectIQManager(
     }
 
     fun sendTeams(
+        matchId: Long,
         teamA: List<String>,
         teamB: List<String>
     ) {
@@ -98,6 +93,7 @@ class ConnectIQManager(
                 val device = devices.first()
 
                 val message = mapOf(
+                    "matchId" to matchId,
                     "teamA" to teamA,
                     "teamB" to teamB
                 )

@@ -1,6 +1,5 @@
 package com.example.footballtracker.ui.matchsetup
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.footballtracker.connectiq.ConnectIQManager
@@ -33,13 +32,31 @@ class MatchSetupViewModel(
         connectIQManager.setOnMessageReceivedListener { message ->
             // Parse message data if it's a Map (Dictionary from Monkey C)
             val data = message as? Map<*, *>
+            val matchId = (data?.get("matchId") as? Number)?.toLong()
+            if (matchId != null) {
+                val scoreA = (data.get("scoreA") as? Number)?.toInt() ?: 0
+                val scoreB = (data.get("scoreB") as? Number)?.toInt() ?: 0
 
-            val scoreA = (data?.get("scoreA") as? Number)?.toInt() ?: 0
-            val scoreB = (data?.get("scoreB") as? Number)?.toInt() ?: 0
-            val teamA = (data?.get("teamA") as? StateFlow<*>)
-            val teamB = (data?.get("teamB") as? StateFlow<*>)
+                val playersWithGoals = mutableListOf<Pair<String, Int>>()
+                
+                // Parse teamA players
+                (data.get("teamA") as? List<*>)?.forEach { playerObj ->
+                    val playerMap = playerObj as? Map<*, *>
+                    val name = playerMap?.get("name") as? String
+                    val goals = (playerMap?.get("goals") as? Number)?.toInt() ?: 0
+                    if (name != null) playersWithGoals.add(name to goals)
+                }
 
-            saveMatch(scoreA, scoreB)
+                // Parse teamB players
+                (data.get("teamB") as? List<*>)?.forEach { playerObj ->
+                    val playerMap = playerObj as? Map<*, *>
+                    val name = playerMap?.get("name") as? String
+                    val goals = (playerMap?.get("goals") as? Number)?.toInt() ?: 0
+                    if (name != null) playersWithGoals.add(name to goals)
+                }
+
+                updateMatch(matchId, scoreA, scoreB, playersWithGoals)
+            }
         }
     }
 
@@ -57,32 +74,37 @@ class MatchSetupViewModel(
         }
     }
 
-    private fun saveMatch(scoreA: Int = 0, scoreB: Int = 0) {
+    private fun updateMatch(matchId: Long, scoreA: Int, scoreB: Int, playersWithGoals: List<Pair<String, Int>>) {
         viewModelScope.launch(Dispatchers.IO) {
-            val match = MatchEntity(
-                teamAName = "Fekete",
-                teamBName = "Fehér",
-                teamAScore = scoreA,
-                teamBScore = scoreB,
-                timestamp = System.currentTimeMillis()
-            )
-
-            val teamAPlayerNames = _teamA.value.map { it.name }
-            val teamBPlayerNames = _teamB.value.map { it.name }
-
-            repository.saveMatch(match, teamAPlayerNames, teamBPlayerNames)
+            repository.updateMatchResult(matchId, scoreA, scoreB, playersWithGoals)
         }
+    }
+
+    private suspend fun createMatch(scoreA: Int = 0, scoreB: Int = 0): Long {
+        val match = MatchEntity(
+            teamAName = "Fekete",
+            teamBName = "Fehér",
+            teamAScore = scoreA,
+            teamBScore = scoreB,
+            timestamp = System.currentTimeMillis()
+        )
+
+        val teamAPlayerNames = _teamA.value.map { it.name }
+        val teamBPlayerNames = _teamB.value.map { it.name }
+
+        return repository.saveMatch(match, teamAPlayerNames, teamBPlayerNames)
     }
 
     fun saveMatchAndSendToWatch() {
         viewModelScope.launch(Dispatchers.IO) {
             // Initially save as 0-0 when starting/sending to watch
-            saveMatch(0, 0)
+            val matchId = createMatch(0, 0)
 
             val teamAPlayerNames = _teamA.value.map { it.name }
             val teamBPlayerNames = _teamB.value.map { it.name }
 
             connectIQManager.sendTeams(
+                matchId = matchId,
                 teamA = teamAPlayerNames,
                 teamB = teamBPlayerNames
             )
