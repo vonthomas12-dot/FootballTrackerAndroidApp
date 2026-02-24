@@ -14,12 +14,6 @@ class MatchRepository(
         val matchPlayers = mutableListOf<MatchPlayerEntity>()
         
         teamAPlayerNames.forEach { name ->
-            val player = matchDao.getPlayerByName(name) ?: PlayerEntity(name = name).also {
-                val id = matchDao.insertPlayer(it)
-                // We don't have the updated ID here easily if we don't fetch it, 
-                // but Room's @Insert returns it.
-            }
-            // Better logic: ensure all players exist first
             val existingPlayer = matchDao.getPlayerByName(name)
             val playerId = existingPlayer?.id ?: matchDao.insertPlayer(PlayerEntity(name = name))
             
@@ -38,6 +32,10 @@ class MatchRepository(
 
     suspend fun addPlayer(player: PlayerEntity) {
         matchDao.insertPlayer(player)
+    }
+
+    suspend fun deleteMatch(match: MatchEntity) {
+        matchDao.deleteMatch(match)
     }
 
     fun getAllPlayers(): Flow<List<PlayerEntity>> {

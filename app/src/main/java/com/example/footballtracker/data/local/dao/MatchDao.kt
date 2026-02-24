@@ -17,6 +17,9 @@ interface MatchDao {
     @Query("SELECT * FROM matches ORDER BY timestamp DESC")
     fun getAllMatches(): Flow<List<MatchEntity>>
 
+    @Delete
+    suspend fun deleteMatch(match: MatchEntity)
+
     // -------------------
     // PLAYERS
     // -------------------
