@@ -2,11 +2,30 @@ package com.example.footballtracker.data.repository
 
 import com.example.footballtracker.data.local.dao.MatchDao
 import com.example.footballtracker.data.local.entity.*
+import com.example.footballtracker.data.remote.MatchApi
+import com.example.footballtracker.data.remote.MatchUploadDto
+import com.example.footballtracker.data.remote.PlayerUploadDto
 import kotlinx.coroutines.flow.Flow
+import kotlinx.serialization.json.Json
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import retrofit2.Retrofit
+import retrofit2.converter.kotlinx.serialization.asConverterFactory
 
 class MatchRepository(
     private val matchDao: MatchDao
 ) {
+
+    private val json = Json { ignoreUnknownKeys = true }
+    private val contentType = "application/json".toMediaType()
+    
+    private val retrofit = Retrofit.Builder()
+        .baseUrl(MatchApi.BASE_URL)
+        .client(OkHttpClient.Builder().build())
+        .addConverterFactory(json.asConverterFactory(contentType))
+        .build()
+
+    private val matchApi = retrofit.create(MatchApi::class.java)
 
     suspend fun saveMatch(match: MatchEntity, teamAPlayerNames: List<String>, teamBPlayerNames: List<String>): Long {
         val matchId = matchDao.insertMatch(match)
@@ -37,20 +56,44 @@ class MatchRepository(
         scoreB: Int, 
         playersWithGoals: List<Pair<String, Int>>
     ) {
-        // Update match scores
         matchDao.updateMatchScore(matchId, scoreA, scoreB)
 
-        // Update each player's goals for this match and their total goals
         playersWithGoals.forEach { (name, goalsInMatch) ->
             val player = matchDao.getPlayerByName(name)
             if (player != null) {
-                // Update match-specific goals in the junction table
                 matchDao.updateMatchPlayerGoals(matchId, player.id, goalsInMatch)
-
-                // Update total player goals in the players table
                 val updatedPlayer = player.copy(goals = player.goals + goalsInMatch)
                 matchDao.updatePlayer(updatedPlayer)
             }
+        }
+    }
+
+    suspend fun uploadMatch(matchWithPlayers: MatchWithPlayersAndTeam): Result<Unit> {
+        return try {
+            val dto = MatchUploadDto(
+                teamAName = matchWithPlayers.match.teamAName,
+                teamBName = matchWithPlayers.match.teamBName,
+                teamAScore = matchWithPlayers.match.teamAScore,
+                teamBScore = matchWithPlayers.match.teamBScore,
+                timestamp = matchWithPlayers.match.timestamp,
+                players = matchWithPlayers.matchPlayers.map {
+                    PlayerUploadDto(
+                        name = it.player.name,
+                        goals = it.matchPlayer.goals,
+                        team = it.matchPlayer.team
+                    )
+                }
+            )
+            val response = matchApi.uploadMatch(dto)
+            if (response.isSuccessful) {
+                // Update local database status on success
+                matchDao.updateMatchUploadStatus(matchWithPlayers.match.matchId, true)
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception("Upload failed with code: ${response.code()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
 

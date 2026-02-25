@@ -12,5 +12,6 @@ data class MatchEntity(
     val teamBName: String,
     val teamAScore: Int,
     val teamBScore: Int,
-    val timestamp: Long
+    val timestamp: Long,
+    val isUploaded: Boolean = false
 )

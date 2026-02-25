@@ -4,11 +4,14 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.example.footballtracker.data.local.entity.MatchEntity
 import com.example.footballtracker.data.local.entity.MatchWithPlayersAndTeam
@@ -22,6 +25,17 @@ fun MatchListScreen(
 ) {
     // Collect Flow from ViewModel
     val matches by viewModel.matches.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(Unit) {
+        viewModel.uploadResult.collect { result ->
+            if (result.isSuccess) {
+                snackbarHostState.showSnackbar("Match uploaded successfully!")
+            } else {
+                snackbarHostState.showSnackbar("Upload failed: ${result.exceptionOrNull()?.message}")
+            }
+        }
+    }
 
     var matchToDelete by remember { mutableStateOf<MatchEntity?>(null) }
 
@@ -50,71 +64,92 @@ fun MatchListScreen(
 
     val dateFormatter = remember { SimpleDateFormat("yyyy.MM.dd", Locale.getDefault()) }
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
-        items(matches) { matchWithPlayers ->
-            val match = matchWithPlayers.match
-            val formattedDate = dateFormatter.format(Date(match.timestamp))
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) }
+    ) { innerPadding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(16.dp)
+        ) {
+            items(matches) { matchWithPlayers ->
+                val match = matchWithPlayers.match
+                val formattedDate = dateFormatter.format(Date(match.timestamp))
 
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp)
-                    .wrapContentHeight()
-            ) {
-                Box(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(end = 40.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp)
+                        .wrapContentHeight()
+                ) {
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        Column(
+                            modifier = Modifier
+                                .padding(16.dp)
+                                .padding(end = 48.dp) // Reserve space for icons on the right
                         ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = "${match.teamAName} vs ${match.teamBName}",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Text(
+                                    text = formattedDate,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+
+                            Text(text = "Score: ${match.teamAScore} - ${match.teamBScore}")
+                            
+                            Spacer(modifier = Modifier.height(8.dp))
+                            
+                            val teamAPlayers = matchWithPlayers.matchPlayers.filter { it.matchPlayer.team == "A" }
+                            val teamBPlayers = matchWithPlayers.matchPlayers.filter { it.matchPlayer.team == "B" }
+
+                            Text(text = "Fekete (A):", style = MaterialTheme.typography.labelLarge)
                             Text(
-                                text = "${match.teamAName} vs ${match.teamBName}",
-                                style = MaterialTheme.typography.titleMedium,
-                                modifier = Modifier.weight(1f)
+                                text = teamAPlayers.joinToString { it.player.name + " (" + it.matchPlayer.goals + ")" },
+                                style = MaterialTheme.typography.bodySmall
                             )
+                            
+                            Spacer(modifier = Modifier.height(4.dp))
+                            
+                            Text(text = "Fehér (B):", style = MaterialTheme.typography.labelLarge)
                             Text(
-                                text = formattedDate,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                text = teamBPlayers.joinToString { it.player.name + " (" + it.matchPlayer.goals + ")" },
+                                style = MaterialTheme.typography.bodySmall
                             )
                         }
 
-                        Text(text = "Score: ${match.teamAScore} - ${match.teamBScore}")
-                        
-                        Spacer(modifier = Modifier.height(8.dp))
-                        
-                        val teamAPlayers = matchWithPlayers.matchPlayers.filter { it.matchPlayer.team == "A" }
-                        val teamBPlayers = matchWithPlayers.matchPlayers.filter { it.matchPlayer.team == "B" }
+                        IconButton(
+                            onClick = { matchToDelete = match },
+                            modifier = Modifier.align(Alignment.TopEnd)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = "Delete Match",
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        }
 
-                        Text(text = "Fekete (A):", style = MaterialTheme.typography.labelLarge)
-                        Text(
-                            text = teamAPlayers.joinToString { it.player.name + " (" + it.matchPlayer.goals + ")" },
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                        
-                        Spacer(modifier = Modifier.height(4.dp))
-                        
-                        Text(text = "Fehér (B):", style = MaterialTheme.typography.labelLarge)
-                        Text(
-                            text = teamBPlayers.joinToString { it.player.name + " (" + it.matchPlayer.goals + ")" },
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
-
-                    IconButton(
-                        onClick = { matchToDelete = match },
-                        modifier = Modifier.align(Alignment.TopEnd)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = "Delete Match",
-                            tint = MaterialTheme.colorScheme.error
-                        )
+                        IconButton(
+                            onClick = { if (!match.isUploaded) viewModel.uploadMatch(matchWithPlayers) },
+                            modifier = Modifier.align(Alignment.BottomEnd),
+                            enabled = !match.isUploaded
+                        ) {
+                            Icon(
+                                imageVector = if (match.isUploaded) Icons.Default.CloudDone else Icons.Default.Upload,
+                                contentDescription = if (match.isUploaded) "Uploaded" else "Upload Match",
+                                tint = if (match.isUploaded) Color(0xFF4CAF50) else MaterialTheme.colorScheme.primary
+                            )
+                        }
                     }
                 }
             }

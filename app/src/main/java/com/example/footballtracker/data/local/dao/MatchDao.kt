@@ -23,6 +23,9 @@ interface MatchDao {
     @Query("UPDATE matches SET teamAScore = :scoreA, teamBScore = :scoreB WHERE matchId = :matchId")
     suspend fun updateMatchScore(matchId: Long, scoreA: Int, scoreB: Int)
 
+    @Query("UPDATE matches SET isUploaded = :isUploaded WHERE matchId = :matchId")
+    suspend fun updateMatchUploadStatus(matchId: Long, isUploaded: Boolean)
+
     // -------------------
     // PLAYERS
     // -------------------
