@@ -51,9 +51,9 @@ class MatchRepository(
     }
 
     suspend fun updateMatchResult(
-        matchId: Long, 
-        scoreA: Int, 
-        scoreB: Int, 
+        matchId: Long,
+        scoreA: Int,
+        scoreB: Int,
         playersWithGoals: List<Pair<String, Int>>
     ) {
         matchDao.updateMatchScore(matchId, scoreA, scoreB)
@@ -61,9 +61,11 @@ class MatchRepository(
         playersWithGoals.forEach { (name, goalsInMatch) ->
             val player = matchDao.getPlayerByName(name)
             if (player != null) {
+                // Write the absolute goal count for this match
                 matchDao.updateMatchPlayerGoals(matchId, player.id, goalsInMatch)
-                val updatedPlayer = player.copy(goals = player.goals + goalsInMatch)
-                matchDao.updatePlayer(updatedPlayer)
+                // Recalculate all-time total by summing across every match
+                val allTimeGoals = matchDao.sumGoalsForPlayer(player.id)
+                matchDao.updatePlayer(player.copy(goals = allTimeGoals))
             }
         }
     }
@@ -102,15 +104,15 @@ class MatchRepository(
     }
 
     suspend fun deleteMatch(match: MatchEntity) {
-        // Fetch each player's goals in this match before CASCADE deletes match_players
+        // Collect affected player IDs before CASCADE delete removes match_players rows
         val matchPlayers = matchDao.getMatchPlayersForMatch(match.matchId)
         matchDao.deleteMatch(match)
-        // Subtract this match's goals from each player's all-time total
+        // Recalculate each player's all-time total from the remaining match_players rows
         matchPlayers.forEach { matchPlayer ->
             val player = matchDao.getPlayerById(matchPlayer.playerId)
             if (player != null) {
-                val updated = player.copy(goals = maxOf(0, player.goals - matchPlayer.goals))
-                matchDao.updatePlayer(updated)
+                val allTimeGoals = matchDao.sumGoalsForPlayer(player.id)
+                matchDao.updatePlayer(player.copy(goals = allTimeGoals))
             }
         }
     }
