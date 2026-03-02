@@ -55,8 +55,14 @@ interface MatchDao {
     @Query("UPDATE match_players SET goals = :goals WHERE matchId = :matchId AND playerId = :playerId")
     suspend fun updateMatchPlayerGoals(matchId: Long, playerId: Long, goals: Int)
 
+    @Query("UPDATE match_players SET assists = :assists WHERE matchId = :matchId AND playerId = :playerId")
+    suspend fun updateMatchPlayerAssists(matchId: Long, playerId: Long, assists: Int)
+
     @Query("SELECT COALESCE(SUM(goals), 0) FROM match_players WHERE playerId = :playerId")
     suspend fun sumGoalsForPlayer(playerId: Long): Int
+
+    @Query("SELECT COALESCE(SUM(assists), 0) FROM match_players WHERE playerId = :playerId")
+    suspend fun sumAssistsForPlayer(playerId: Long): Int
 
     @Query("SELECT * FROM match_players WHERE matchId = :matchId")
     suspend fun getMatchPlayersForMatch(matchId: Long): List<MatchPlayerEntity>

@@ -9,6 +9,7 @@ import retrofit2.http.POST
 data class PlayerUploadDto(
     val name: String,
     val goals: Int,
+    val assists: Int,
     val team: String
 )
 

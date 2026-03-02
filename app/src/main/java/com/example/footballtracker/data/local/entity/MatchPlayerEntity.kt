@@ -27,5 +27,6 @@ data class MatchPlayerEntity(
     val matchId: Long,
     val playerId: Long,
     val team: String, // "A" or "B"
-    val goals: Int = 0
+    val goals: Int = 0,
+    val assists: Int = 0
 )

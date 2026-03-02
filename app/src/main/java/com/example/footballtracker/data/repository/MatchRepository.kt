@@ -54,18 +54,18 @@ class MatchRepository(
         matchId: Long,
         scoreA: Int,
         scoreB: Int,
-        playersWithGoals: List<Pair<String, Int>>
+        playersWithStats: List<Triple<String, Int, Int>> // name, goals, assists
     ) {
         matchDao.updateMatchScore(matchId, scoreA, scoreB)
 
-        playersWithGoals.forEach { (name, goalsInMatch) ->
+        playersWithStats.forEach { (name, goalsInMatch, assistsInMatch) ->
             val player = matchDao.getPlayerByName(name)
             if (player != null) {
-                // Write the absolute goal count for this match
                 matchDao.updateMatchPlayerGoals(matchId, player.id, goalsInMatch)
-                // Recalculate all-time total by summing across every match
+                matchDao.updateMatchPlayerAssists(matchId, player.id, assistsInMatch)
                 val allTimeGoals = matchDao.sumGoalsForPlayer(player.id)
-                matchDao.updatePlayer(player.copy(goals = allTimeGoals))
+                val allTimeAssists = matchDao.sumAssistsForPlayer(player.id)
+                matchDao.updatePlayer(player.copy(goals = allTimeGoals, assists = allTimeAssists))
             }
         }
     }
@@ -82,6 +82,7 @@ class MatchRepository(
                     PlayerUploadDto(
                         name = it.player.name,
                         goals = it.matchPlayer.goals,
+                        assists = it.matchPlayer.assists,
                         team = it.matchPlayer.team
                     )
                 }
@@ -104,15 +105,14 @@ class MatchRepository(
     }
 
     suspend fun deleteMatch(match: MatchEntity) {
-        // Collect affected player IDs before CASCADE delete removes match_players rows
         val matchPlayers = matchDao.getMatchPlayersForMatch(match.matchId)
         matchDao.deleteMatch(match)
-        // Recalculate each player's all-time total from the remaining match_players rows
         matchPlayers.forEach { matchPlayer ->
             val player = matchDao.getPlayerById(matchPlayer.playerId)
             if (player != null) {
                 val allTimeGoals = matchDao.sumGoalsForPlayer(player.id)
-                matchDao.updatePlayer(player.copy(goals = allTimeGoals))
+                val allTimeAssists = matchDao.sumAssistsForPlayer(player.id)
+                matchDao.updatePlayer(player.copy(goals = allTimeGoals, assists = allTimeAssists))
             }
         }
     }

@@ -118,7 +118,7 @@ fun PlayersScreen(
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Text(text = player.name, style = MaterialTheme.typography.titleLarge)
-                            Text(text = "Goals: ${player.goals}", style = MaterialTheme.typography.bodyMedium)
+                            Text(text = "⚽ Goals: ${player.goals}  🅰 Assists: ${player.assists}", style = MaterialTheme.typography.bodyMedium)
                         }
                     }
                 }

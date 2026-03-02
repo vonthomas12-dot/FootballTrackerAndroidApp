@@ -30,21 +30,21 @@ class MatchSetupViewModel(
 
     init {
         connectIQManager.setOnMessageReceivedListener { message ->
-            // Parse message data if it's a Map (Dictionary from Monkey C)
             val data = message as? Map<*, *>
             val matchId = (data?.get("matchId") as? Number)?.toLong()
             if (matchId != null) {
                 val scoreA = (data.get("scoreA") as? Number)?.toInt() ?: 0
                 val scoreB = (data.get("scoreB") as? Number)?.toInt() ?: 0
 
-                val playersWithGoals = mutableListOf<Pair<String, Int>>()
-                
+                val playersWithStats = mutableListOf<Triple<String, Int, Int>>()
+
                 // Parse teamA players
                 (data.get("teamA") as? List<*>)?.forEach { playerObj ->
                     val playerMap = playerObj as? Map<*, *>
                     val name = playerMap?.get("name") as? String
                     val goals = (playerMap?.get("goals") as? Number)?.toInt() ?: 0
-                    if (name != null) playersWithGoals.add(name to goals)
+                    val assists = (playerMap?.get("assists") as? Number)?.toInt() ?: 0
+                    if (name != null) playersWithStats.add(Triple(name, goals, assists))
                 }
 
                 // Parse teamB players
@@ -52,10 +52,11 @@ class MatchSetupViewModel(
                     val playerMap = playerObj as? Map<*, *>
                     val name = playerMap?.get("name") as? String
                     val goals = (playerMap?.get("goals") as? Number)?.toInt() ?: 0
-                    if (name != null) playersWithGoals.add(name to goals)
+                    val assists = (playerMap?.get("assists") as? Number)?.toInt() ?: 0
+                    if (name != null) playersWithStats.add(Triple(name, goals, assists))
                 }
 
-                updateMatch(matchId, scoreA, scoreB, playersWithGoals)
+                updateMatch(matchId, scoreA, scoreB, playersWithStats)
             }
         }
     }
@@ -82,9 +83,9 @@ class MatchSetupViewModel(
         }
     }
 
-    private fun updateMatch(matchId: Long, scoreA: Int, scoreB: Int, playersWithGoals: List<Pair<String, Int>>) {
+    private fun updateMatch(matchId: Long, scoreA: Int, scoreB: Int, playersWithStats: List<Triple<String, Int, Int>>) {
         viewModelScope.launch(Dispatchers.IO) {
-            repository.updateMatchResult(matchId, scoreA, scoreB, playersWithGoals)
+            repository.updateMatchResult(matchId, scoreA, scoreB, playersWithStats)
         }
     }
 

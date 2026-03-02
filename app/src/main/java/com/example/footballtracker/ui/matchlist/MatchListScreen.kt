@@ -1,5 +1,10 @@
 package com.example.footballtracker.ui.matchlist
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -7,11 +12,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -120,6 +127,9 @@ private fun MatchCard(
         .sortedByDescending { it.matchPlayer.goals }
     val formattedDate = dateFormatter.format(Date(match.timestamp))
 
+    var expanded by remember { mutableStateOf(false) }
+    val chevronRotation by animateFloatAsState(targetValue = if (expanded) 180f else 0f, label = "chevron")
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -127,11 +137,14 @@ private fun MatchCard(
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
 
-            // Date + actions row
+            // --- Collapsed header (always visible) ---
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = !expanded },
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // Date
                 Text(
                     text = formattedDate,
                     style = MaterialTheme.typography.labelMedium,
@@ -166,9 +179,11 @@ private fun MatchCard(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Score row
+            // Score row (always visible) — clicking it also toggles
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = !expanded },
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
@@ -200,23 +215,46 @@ private fun MatchCard(
                 )
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Players side by side
+            // Chevron hint
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = !expanded },
+                horizontalArrangement = Arrangement.Center
             ) {
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    teamAPlayers.forEach { mp ->
-                        PlayerChip(name = mp.player.name, goals = mp.matchPlayer.goals)
-                    }
-                }
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    teamBPlayers.forEach { mp ->
-                        PlayerChip(name = mp.player.name, goals = mp.matchPlayer.goals)
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowDown,
+                    contentDescription = if (expanded) "Collapse" else "Expand",
+                    modifier = Modifier.size(20.dp).rotate(chevronRotation),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            // --- Expandable details ---
+            AnimatedVisibility(
+                visible = expanded,
+                enter = expandVertically(),
+                exit = shrinkVertically()
+            ) {
+                Column {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            teamAPlayers.forEach { mp ->
+                                PlayerChip(name = mp.player.name, goals = mp.matchPlayer.goals, assists = mp.matchPlayer.assists)
+                            }
+                        }
+                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            teamBPlayers.forEach { mp ->
+                                PlayerChip(name = mp.player.name, goals = mp.matchPlayer.goals, assists = mp.matchPlayer.assists)
+                            }
+                        }
                     }
                 }
             }
@@ -225,7 +263,7 @@ private fun MatchCard(
 }
 
 @Composable
-private fun PlayerChip(name: String, goals: Int) {
+private fun PlayerChip(name: String, goals: Int, assists: Int) {
     Surface(
         shape = RoundedCornerShape(8.dp),
         color = MaterialTheme.colorScheme.secondaryContainer,
@@ -242,18 +280,34 @@ private fun PlayerChip(name: String, goals: Int) {
                 color = MaterialTheme.colorScheme.onSecondaryContainer,
                 modifier = Modifier.weight(1f)
             )
-            if (goals > 0) {
-                Surface(
-                    shape = RoundedCornerShape(4.dp),
-                    color = MaterialTheme.colorScheme.primary
-                ) {
-                    Text(
-                        text = "⚽ $goals",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
-                        fontSize = 10.sp
-                    )
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                if (goals > 0) {
+                    Surface(
+                        shape = RoundedCornerShape(4.dp),
+                        color = MaterialTheme.colorScheme.primary
+                    ) {
+                        Text(
+                            text = "⚽ $goals",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                            fontSize = 10.sp
+                        )
+                    }
+                }
+                if (assists > 0) {
+                    Surface(
+                        shape = RoundedCornerShape(4.dp),
+                        color = MaterialTheme.colorScheme.tertiary
+                    ) {
+                        Text(
+                            text = "🅰 $assists",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onTertiary,
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                            fontSize = 10.sp
+                        )
+                    }
                 }
             }
         }

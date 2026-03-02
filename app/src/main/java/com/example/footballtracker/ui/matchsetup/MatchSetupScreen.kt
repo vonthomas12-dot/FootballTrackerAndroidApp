@@ -2,12 +2,17 @@ package com.example.footballtracker.ui.matchsetup
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.SportsSoccer
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.footballtracker.data.local.entity.PlayerEntity
 
@@ -26,13 +31,28 @@ fun MatchSetupScreen(
         }
     }
 
-    var selectedTeam by remember { mutableStateOf("A") }
     var selectedPlayers by remember { mutableStateOf<List<PlayerEntity>>(emptyList()) }
     var expanded by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
             TopAppBar(title = { Text("Match Setup") })
+        },
+        bottomBar = {
+            Surface(shadowElevation = 8.dp) {
+                Button(
+                    onClick = { viewModel.saveMatchAndSendToWatch() },
+                    enabled = teamA.isNotEmpty() && teamB.isNotEmpty(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(Icons.Default.SportsSoccer, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Save & Send to Watch", style = MaterialTheme.typography.titleMedium)
+                }
+            }
         }
     ) { innerPadding ->
 
@@ -40,20 +60,31 @@ fun MatchSetupScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(16.dp)
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(vertical = 16.dp)
         ) {
-            item {
 
-                // Multi-select Dropdown
+            // --- Player picker ---
+            item {
+                Text(
+                    "Add Players to a Team",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+
                 ExposedDropdownMenuBox(
                     expanded = expanded,
                     onExpandedChange = { expanded = !expanded }
                 ) {
                     OutlinedTextField(
-                        value = selectedPlayers.joinToString { it.name },
+                        value = if (selectedPlayers.isEmpty()) ""
+                                else selectedPlayers.joinToString { it.name },
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("Select Players") },
+                        placeholder = { Text("Select players…") },
+                        label = { Text("Players") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                         modifier = Modifier.menuAnchor().fillMaxWidth()
                     )
@@ -61,124 +92,190 @@ fun MatchSetupScreen(
                         expanded = expanded,
                         onDismissRequest = { expanded = false }
                     ) {
-                        availablePlayers.forEach { player ->
+                        if (availablePlayers.isEmpty()) {
                             DropdownMenuItem(
-                                text = { Text(player.name) },
-                                onClick = {
-                                    selectedPlayers = if (selectedPlayers.contains(player)) {
-                                        selectedPlayers - player
-                                    } else {
-                                        selectedPlayers + player
-                                    }
-                                },
-                                leadingIcon = {
-                                    Checkbox(
-                                        checked = selectedPlayers.contains(player),
-                                        onCheckedChange = null
+                                text = {
+                                    Text(
+                                        "All players are already assigned",
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
-                                }
+                                },
+                                onClick = {},
+                                enabled = false
                             )
+                        } else {
+                            availablePlayers.forEach { player ->
+                                DropdownMenuItem(
+                                    text = { Text(player.name) },
+                                    onClick = {
+                                        selectedPlayers = if (selectedPlayers.contains(player))
+                                            selectedPlayers - player
+                                        else
+                                            selectedPlayers + player
+                                    },
+                                    leadingIcon = {
+                                        Checkbox(
+                                            checked = selectedPlayers.contains(player),
+                                            onCheckedChange = null
+                                        )
+                                    }
+                                )
+                            }
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
-                Text("Select Team", style = MaterialTheme.typography.titleMedium)
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    RadioButton(
-                        selected = selectedTeam == "A",
-                        onClick = { selectedTeam = "A" }
-                    )
-                    Text("Fekete (A)")
-                    Spacer(modifier = Modifier.width(16.dp))
-                    RadioButton(
-                        selected = selectedTeam == "B",
-                        onClick = { selectedTeam = "B" }
-                    )
-                    Text("Fehér (B)")
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Button(
-                    onClick = {
-                        if (selectedPlayers.isNotEmpty()) {
-                            viewModel.addPlayersToTeam(selectedPlayers, selectedTeam)
-                            selectedPlayers = emptyList()
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth()
+                // Two direct team buttons — eliminates the radio + single button step
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text("Add Selected to Team")
+                    Button(
+                        onClick = {
+                            if (selectedPlayers.isNotEmpty()) {
+                                viewModel.addPlayersToTeam(selectedPlayers, "A")
+                                selectedPlayers = emptyList()
+                                expanded = false
+                            }
+                        },
+                        enabled = selectedPlayers.isNotEmpty(),
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text("→ Fekete", maxLines = 1)
+                    }
+                    Button(
+                        onClick = {
+                            if (selectedPlayers.isNotEmpty()) {
+                                viewModel.addPlayersToTeam(selectedPlayers, "B")
+                                selectedPlayers = emptyList()
+                                expanded = false
+                            }
+                        },
+                        enabled = selectedPlayers.isNotEmpty(),
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.tertiary
+                        )
+                    ) {
+                        Text("→ Fehér", maxLines = 1)
+                    }
                 }
+            }
 
-                Spacer(modifier = Modifier.height(24.dp))
+            // --- Teams side by side ---
+            item {
                 HorizontalDivider()
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // Team A column
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("Fekete (A)", style = MaterialTheme.typography.titleMedium)
-                        teamA.forEach { player ->
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    player.name,
-                                    modifier = Modifier.weight(1f).padding(4.dp),
-                                    style = MaterialTheme.typography.titleMedium
-                                )
-                                IconButton(
-                                    onClick = { viewModel.removePlayerFromTeam(player, "A") },
-                                    modifier = Modifier.size(32.dp)
-                                ) {
-                                    Icon(
-                                        Icons.Default.Close,
-                                        contentDescription = "Remove ${player.name}",
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    VerticalDivider(modifier = Modifier.height(IntrinsicSize.Min))
-
-                    // Team B column
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("Fehér (B)", style = MaterialTheme.typography.titleMedium)
-                        teamB.forEach { player ->
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    player.name,
-                                    modifier = Modifier.weight(1f).padding(4.dp),
-                                    style = MaterialTheme.typography.titleMedium
-                                )
-                                IconButton(
-                                    onClick = { viewModel.removePlayerFromTeam(player, "B") },
-                                    modifier = Modifier.size(32.dp)
-                                ) {
-                                    Icon(
-                                        Icons.Default.Close,
-                                        contentDescription = "Remove ${player.name}",
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
+                    TeamColumn(
+                        title = "Fekete",
+                        players = teamA,
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        onContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        onRemove = { viewModel.removePlayerFromTeam(it, "A") },
+                        modifier = Modifier.weight(1f)
+                    )
+                    TeamColumn(
+                        title = "Fehér",
+                        players = teamB,
+                        containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                        onContentColor = Color.White,
+                        onRemove = { viewModel.removePlayerFromTeam(it, "B") },
+                        modifier = Modifier.weight(1f)
+                    )
                 }
+            }
+        }
+    }
+}
 
-                Spacer(modifier = Modifier.height(32.dp))
+@Composable
+private fun TeamColumn(
+    title: String,
+    players: List<PlayerEntity>,
+    containerColor: androidx.compose.ui.graphics.Color,
+    onContentColor: androidx.compose.ui.graphics.Color,
+    onRemove: (PlayerEntity) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = containerColor,
+        modifier = modifier
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
 
-                Button(
-                    onClick = { viewModel.saveMatchAndSendToWatch() },
-                    modifier = Modifier.fillMaxWidth()
+            // Header with player count badge
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = onContentColor,
+                    modifier = Modifier.weight(1f)
+                )
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = onContentColor.copy(alpha = 0.15f)
                 ) {
-                    Text("Save Match & Send to Watch")
+                    Text(
+                        text = "${players.size}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = onContentColor,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            if (players.isEmpty()) {
+                Text(
+                    text = "No players yet",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = onContentColor.copy(alpha = 0.5f),
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 12.dp)
+                )
+            } else {
+                players.forEach { player ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 48.dp)
+                    ) {
+                        Text(
+                            text = player.name,
+                            style = MaterialTheme.typography.titleLarge,
+                            color = onContentColor,
+                            modifier = Modifier.weight(1f)
+                        )
+                        IconButton(
+                            onClick = { onRemove(player) },
+                            modifier = Modifier.size(44.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Close,
+                                contentDescription = "Remove ${player.name}",
+                                tint = onContentColor.copy(alpha = 0.7f),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
                 }
             }
         }
