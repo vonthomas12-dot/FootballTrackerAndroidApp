@@ -27,7 +27,6 @@ fun MatchSetupScreen(
     var selectedTeam by remember { mutableStateOf("A") }
     var selectedPlayers by remember { mutableStateOf<List<PlayerEntity>>(emptyList()) }
     var expanded by remember { mutableStateOf(false) }
-    var newPlayerName by remember { mutableStateOf("") }
 
     Scaffold(
         topBar = {
@@ -42,28 +41,6 @@ fun MatchSetupScreen(
                 .padding(16.dp)
         ) {
             item {
-                Text("Create New Player", style = MaterialTheme.typography.titleMedium)
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    OutlinedTextField(
-                        value = newPlayerName,
-                        onValueChange = { newPlayerName = it },
-                        label = { Text("Player Name") },
-                        modifier = Modifier.weight(1f)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Button(onClick = {
-                        if (newPlayerName.isNotBlank()) {
-                            viewModel.addPlayerToDb(newPlayerName)
-                            newPlayerName = ""
-                        }
-                    }) {
-                        Text("Add")
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(24.dp))
-                HorizontalDivider()
-                Spacer(modifier = Modifier.height(24.dp))
 
                 // Multi-select Dropdown
                 ExposedDropdownMenuBox(

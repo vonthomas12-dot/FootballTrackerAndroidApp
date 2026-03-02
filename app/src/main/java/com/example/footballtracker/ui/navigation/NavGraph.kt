@@ -31,7 +31,7 @@ import com.example.footballtracker.ui.players.PlayersScreen
 import com.example.footballtracker.ui.players.PlayersViewModel
 
 sealed class Screen(val route: String, val label: String, val icon: ImageVector) {
-    object MatchSetup : Screen("setup", "Add Player", Icons.Default.Add)
+    object MatchSetup : Screen("setup", "Match Setup", Icons.Default.Add)
     object MatchList : Screen("matchList", "Match List", Icons.AutoMirrored.Filled.List)
     object Players : Screen("players", "Players", Icons.Default.Person)
 }

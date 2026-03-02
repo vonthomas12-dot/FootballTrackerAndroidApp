@@ -4,11 +4,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.footballtracker.data.local.entity.PlayerEntity
 import com.example.footballtracker.data.repository.MatchRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 enum class SortOrder { GOALS, NAME }
 
@@ -34,5 +36,11 @@ class PlayersViewModel(
 
     fun setSortOrder(order: SortOrder) {
         _sortOrder.value = order
+    }
+
+    fun addPlayerToDb(name: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.addPlayer(PlayerEntity(name = name))
+        }
     }
 }
