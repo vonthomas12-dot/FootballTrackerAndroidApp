@@ -31,18 +31,18 @@ class MatchRepository(
         val matchId = matchDao.insertMatch(match)
         
         val matchPlayers = mutableListOf<MatchPlayerEntity>()
-        
+
         teamAPlayerNames.forEach { name ->
             val existingPlayer = matchDao.getPlayerByName(name)
             val playerId = existingPlayer?.id ?: matchDao.insertPlayer(PlayerEntity(name = name))
-            
+
             matchPlayers.add(MatchPlayerEntity(matchId = matchId, playerId = playerId, team = "A"))
         }
 
         teamBPlayerNames.forEach { name ->
             val existingPlayer = matchDao.getPlayerByName(name)
             val playerId = existingPlayer?.id ?: matchDao.insertPlayer(PlayerEntity(name = name))
-            
+
             matchPlayers.add(MatchPlayerEntity(matchId = matchId, playerId = playerId, team = "B"))
         }
         
@@ -102,7 +102,17 @@ class MatchRepository(
     }
 
     suspend fun deleteMatch(match: MatchEntity) {
+        // Fetch each player's goals in this match before CASCADE deletes match_players
+        val matchPlayers = matchDao.getMatchPlayersForMatch(match.matchId)
         matchDao.deleteMatch(match)
+        // Subtract this match's goals from each player's all-time total
+        matchPlayers.forEach { matchPlayer ->
+            val player = matchDao.getPlayerById(matchPlayer.playerId)
+            if (player != null) {
+                val updated = player.copy(goals = maxOf(0, player.goals - matchPlayer.goals))
+                matchDao.updatePlayer(updated)
+            }
+        }
     }
 
     fun getAllPlayers(): Flow<List<PlayerEntity>> {

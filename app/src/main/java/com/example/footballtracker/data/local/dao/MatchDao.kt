@@ -42,6 +42,9 @@ interface MatchDao {
     @Query("SELECT * FROM players WHERE name = :name LIMIT 1")
     suspend fun getPlayerByName(name: String): PlayerEntity?
 
+    @Query("SELECT * FROM players WHERE id = :id LIMIT 1")
+    suspend fun getPlayerById(id: Long): PlayerEntity?
+
     // -------------------
     // MATCH PLAYERS (JUNCTION)
     // -------------------
@@ -51,6 +54,9 @@ interface MatchDao {
 
     @Query("UPDATE match_players SET goals = :goals WHERE matchId = :matchId AND playerId = :playerId")
     suspend fun updateMatchPlayerGoals(matchId: Long, playerId: Long, goals: Int)
+
+    @Query("SELECT * FROM match_players WHERE matchId = :matchId")
+    suspend fun getMatchPlayersForMatch(matchId: Long): List<MatchPlayerEntity>
 
     // -------------------
     // RELATIONS
