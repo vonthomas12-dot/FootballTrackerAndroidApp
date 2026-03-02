@@ -3,8 +3,8 @@ package com.example.footballtracker.ui.navigation
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.SportsSoccer
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -31,7 +31,7 @@ import com.example.footballtracker.ui.players.PlayersScreen
 import com.example.footballtracker.ui.players.PlayersViewModel
 
 sealed class Screen(val route: String, val label: String, val icon: ImageVector) {
-    object MatchSetup : Screen("setup", "Match Setup", Icons.Default.Add)
+    object MatchSetup : Screen("setup", "Match Setup", Icons.Default.SportsSoccer)
     object MatchList : Screen("matchList", "Match List", Icons.AutoMirrored.Filled.List)
     object Players : Screen("players", "Players", Icons.Default.Person)
 }

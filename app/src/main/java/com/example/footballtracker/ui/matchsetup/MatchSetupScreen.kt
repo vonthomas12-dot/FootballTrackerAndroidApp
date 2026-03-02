@@ -2,6 +2,8 @@ package com.example.footballtracker.ui.matchsetup
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -115,16 +117,59 @@ fun MatchSetupScreen(
                 HorizontalDivider()
                 Spacer(modifier = Modifier.height(24.dp))
 
-                Text("Fekete (Team A)", style = MaterialTheme.typography.titleMedium)
-                teamA.forEach { player ->
-                    Text(player.name, modifier = Modifier.padding(4.dp))
-                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Team A column
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Fekete (A)", style = MaterialTheme.typography.titleMedium)
+                        teamA.forEach { player ->
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    player.name,
+                                    modifier = Modifier.weight(1f).padding(4.dp),
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                                IconButton(
+                                    onClick = { viewModel.removePlayerFromTeam(player, "A") },
+                                    modifier = Modifier.size(32.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Close,
+                                        contentDescription = "Remove ${player.name}",
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                    VerticalDivider(modifier = Modifier.height(IntrinsicSize.Min))
 
-                Text("Fehér (Team B)", style = MaterialTheme.typography.titleMedium)
-                teamB.forEach { player ->
-                    Text(player.name, modifier = Modifier.padding(4.dp))
+                    // Team B column
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Fehér (B)", style = MaterialTheme.typography.titleMedium)
+                        teamB.forEach { player ->
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    player.name,
+                                    modifier = Modifier.weight(1f).padding(4.dp),
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                                IconButton(
+                                    onClick = { viewModel.removePlayerFromTeam(player, "B") },
+                                    modifier = Modifier.size(32.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Close,
+                                        contentDescription = "Remove ${player.name}",
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(32.dp))

@@ -68,6 +68,14 @@ class MatchSetupViewModel(
         }
     }
 
+    fun removePlayerFromTeam(player: PlayerEntity, team: String) {
+        if (team == "A") {
+            _teamA.value = _teamA.value.filter { it.id != player.id }
+        } else {
+            _teamB.value = _teamB.value.filter { it.id != player.id }
+        }
+    }
+
     fun addPlayerToDb(name: String) {
         viewModelScope.launch(Dispatchers.IO) {
             repository.addPlayer(PlayerEntity(name = name))
