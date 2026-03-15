@@ -39,6 +39,12 @@ interface MatchDao {
     @Query("SELECT * FROM players")
     fun getAllPlayers(): Flow<List<PlayerEntity>>
     
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertPlayers(players: List<PlayerEntity>): List<Long>
+
+    @Query("SELECT * FROM players WHERE name IN (:names)")
+    suspend fun getPlayersByNames(names: List<String>): List<PlayerEntity>
+
     @Query("SELECT * FROM players WHERE name = :name LIMIT 1")
     suspend fun getPlayerByName(name: String): PlayerEntity?
 

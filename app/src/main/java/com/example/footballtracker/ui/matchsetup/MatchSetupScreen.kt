@@ -4,7 +4,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.SportsSoccer
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -15,6 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.footballtracker.data.local.entity.PlayerEntity
+import com.example.footballtracker.data.remote.EventPlayerDto
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -24,6 +27,17 @@ fun MatchSetupScreen(
     val teamA by viewModel.teamA.collectAsState()
     val teamB by viewModel.teamB.collectAsState()
     val allPlayers by viewModel.allPlayers.collectAsState()
+    val isFetching by viewModel.isFetching.collectAsState()
+    val selectedDateMillis by viewModel.selectedDateMillis.collectAsState()
+    val eventPlayers by viewModel.eventPlayers.collectAsState()
+    val fetchError by viewModel.fetchError.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(fetchError) {
+        if (fetchError != null) {
+            snackbarHostState.showSnackbar("Fetch failed: $fetchError")
+        }
+    }
 
     val availablePlayers = remember(allPlayers, teamA, teamB) {
         allPlayers.filter { player ->
@@ -32,25 +46,60 @@ fun MatchSetupScreen(
     }
 
     var selectedPlayers by remember { mutableStateOf<List<PlayerEntity>>(emptyList()) }
-    var expanded by remember { mutableStateOf(false) }
+    var playerPickerExpanded by remember { mutableStateOf(false) }
+
+    // Date picker dialog state
+    var showDatePicker by remember { mutableStateOf(false) }
+    val datePickerState = rememberDatePickerState(
+        initialSelectedDateMillis = selectedDateMillis
+    )
+
+    if (showDatePicker) {
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let { millis ->
+                        viewModel.setSelectedDate(millis)
+                    }
+                    showDatePicker = false
+                }) { Text("OK") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) { Text("Cancel") }
+            }
+        ) {
+            DatePicker(state = datePickerState)
+        }
+    }
+
+    // Event players dropdown state
+    var eventPickerExpanded by remember { mutableStateOf(false) }
+    var selectedEventPlayers by remember(eventPlayers) { mutableStateOf<List<EventPlayerDto>>(emptyList()) }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(title = { Text("Match Setup") })
         },
         bottomBar = {
             Surface(shadowElevation = 8.dp) {
-                Button(
-                    onClick = { viewModel.saveMatchAndSendToWatch() },
-                    enabled = teamA.isNotEmpty() && teamB.isNotEmpty(),
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 12.dp),
-                    shape = RoundedCornerShape(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(Icons.Default.SportsSoccer, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Save & Send to Watch", style = MaterialTheme.typography.titleMedium)
+                    Button(
+                        onClick = { viewModel.saveMatchAndSendToWatch() },
+                        enabled = teamA.isNotEmpty() && teamB.isNotEmpty(),
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.SportsSoccer, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Save & Send to Watch", style = MaterialTheme.typography.titleMedium)
+                    }
                 }
             }
         }
@@ -65,8 +114,136 @@ fun MatchSetupScreen(
             contentPadding = PaddingValues(vertical = 16.dp)
         ) {
 
-            // --- Player picker ---
+            // --- Event fetch section ---
             item {
+                Text(
+                    "Fetch Event Players",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Date picker row
+                OutlinedTextField(
+                    value = MatchSetupViewModel.formatDate(selectedDateMillis),
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Event Date") },
+                    trailingIcon = {
+                        IconButton(onClick = { showDatePicker = true }) {
+                            Icon(Icons.Default.CalendarMonth, contentDescription = "Pick date")
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                OutlinedButton(
+                    onClick = { viewModel.fetchEvent() },
+                    enabled = !isFetching,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    if (isFetching) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                    } else {
+                        Icon(Icons.Default.CloudDownload, contentDescription = null)
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Fetch Players from Server")
+                }
+
+                // Event players dropdown — only shown after a successful fetch
+                if (eventPlayers.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    ExposedDropdownMenuBox(
+                        expanded = eventPickerExpanded,
+                        onExpandedChange = { eventPickerExpanded = !eventPickerExpanded }
+                    ) {
+                        OutlinedTextField(
+                            value = if (selectedEventPlayers.isEmpty()) ""
+                                    else selectedEventPlayers.joinToString { it.name },
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Event Players (${eventPlayers.size})") },
+                            placeholder = { Text("Select from event…") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = eventPickerExpanded) },
+                            modifier = Modifier.menuAnchor().fillMaxWidth()
+                        )
+                        ExposedDropdownMenu(
+                            expanded = eventPickerExpanded,
+                            onDismissRequest = { eventPickerExpanded = false }
+                        ) {
+                            eventPlayers.forEach { ep ->
+                                val teamLabel = when (ep.team) {
+                                    "A" -> " (Fekete)"
+                                    "B" -> " (Fehér)"
+                                    else -> ""
+                                }
+                                DropdownMenuItem(
+                                    text = { Text(ep.name + teamLabel) },
+                                    onClick = {
+                                        selectedEventPlayers =
+                                            if (selectedEventPlayers.any { it.name == ep.name })
+                                                selectedEventPlayers.filter { it.name != ep.name }
+                                            else
+                                                selectedEventPlayers + ep
+                                    },
+                                    leadingIcon = {
+                                        Checkbox(
+                                            checked = selectedEventPlayers.any { it.name == ep.name },
+                                            onCheckedChange = null
+                                        )
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    if (selectedEventPlayers.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Button(
+                                onClick = {
+                                    val toAdd = selectedEventPlayers.map {
+                                        PlayerEntity(name = it.name)
+                                    }
+                                    viewModel.addEventPlayersToTeam(toAdd, "A")
+                                    selectedEventPlayers = emptyList()
+                                    eventPickerExpanded = false
+                                },
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(10.dp)
+                            ) { Text("→ Fekete", maxLines = 1) }
+                            Button(
+                                onClick = {
+                                    val toAdd = selectedEventPlayers.map {
+                                        PlayerEntity(name = it.name)
+                                    }
+                                    viewModel.addEventPlayersToTeam(toAdd, "B")
+                                    selectedEventPlayers = emptyList()
+                                    eventPickerExpanded = false
+                                },
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(10.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.tertiary
+                                )
+                            ) { Text("→ Fehér", maxLines = 1) }
+                        }
+                    }
+                }
+            }
+
+            // --- Player picker (local DB) ---
+            item {
+                HorizontalDivider()
+                Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     "Add Players to a Team",
                     style = MaterialTheme.typography.titleMedium,
@@ -75,8 +252,8 @@ fun MatchSetupScreen(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 ExposedDropdownMenuBox(
-                    expanded = expanded,
-                    onExpandedChange = { expanded = !expanded }
+                    expanded = playerPickerExpanded,
+                    onExpandedChange = { playerPickerExpanded = !playerPickerExpanded }
                 ) {
                     OutlinedTextField(
                         value = if (selectedPlayers.isEmpty()) ""
@@ -85,12 +262,12 @@ fun MatchSetupScreen(
                         readOnly = true,
                         placeholder = { Text("Select players…") },
                         label = { Text("Players") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = playerPickerExpanded) },
                         modifier = Modifier.menuAnchor().fillMaxWidth()
                     )
                     ExposedDropdownMenu(
-                        expanded = expanded,
-                        onDismissRequest = { expanded = false }
+                        expanded = playerPickerExpanded,
+                        onDismissRequest = { playerPickerExpanded = false }
                     ) {
                         if (availablePlayers.isEmpty()) {
                             DropdownMenuItem(
@@ -127,7 +304,6 @@ fun MatchSetupScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Two direct team buttons — eliminates the radio + single button step
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -137,7 +313,7 @@ fun MatchSetupScreen(
                             if (selectedPlayers.isNotEmpty()) {
                                 viewModel.addPlayersToTeam(selectedPlayers, "A")
                                 selectedPlayers = emptyList()
-                                expanded = false
+                                playerPickerExpanded = false
                             }
                         },
                         enabled = selectedPlayers.isNotEmpty(),
@@ -151,7 +327,7 @@ fun MatchSetupScreen(
                             if (selectedPlayers.isNotEmpty()) {
                                 viewModel.addPlayersToTeam(selectedPlayers, "B")
                                 selectedPlayers = emptyList()
-                                expanded = false
+                                playerPickerExpanded = false
                             }
                         },
                         enabled = selectedPlayers.isNotEmpty(),

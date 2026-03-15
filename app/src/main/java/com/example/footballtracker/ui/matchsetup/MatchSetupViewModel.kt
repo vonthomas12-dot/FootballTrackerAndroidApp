@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.example.footballtracker.connectiq.ConnectIQManager
 import com.example.footballtracker.data.local.entity.MatchEntity
 import com.example.footballtracker.data.local.entity.PlayerEntity
+import com.example.footballtracker.data.remote.EventDto
+import com.example.footballtracker.data.remote.EventPlayerDto
 import com.example.footballtracker.data.repository.MatchRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -13,6 +15,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
 
 class MatchSetupViewModel(
     private val connectIQManager: ConnectIQManager,
@@ -27,6 +32,55 @@ class MatchSetupViewModel(
 
     val allPlayers: StateFlow<List<PlayerEntity>> = repository.getAllPlayers()
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+
+    private val _selectedDateMillis = MutableStateFlow(todayMillis())
+    val selectedDateMillis: StateFlow<Long> = _selectedDateMillis.asStateFlow()
+
+    private val _eventPlayers = MutableStateFlow<List<EventPlayerDto>>(emptyList())
+    val eventPlayers: StateFlow<List<EventPlayerDto>> = _eventPlayers.asStateFlow()
+
+    private val _fetchError = MutableStateFlow<String?>(null)
+    val fetchError: StateFlow<String?> = _fetchError.asStateFlow()
+
+    private val _isFetching = MutableStateFlow(false)
+    val isFetching: StateFlow<Boolean> = _isFetching.asStateFlow()
+
+    fun setSelectedDate(millis: Long) {
+        _selectedDateMillis.value = millis
+    }
+
+    fun fetchEvent() {
+        viewModelScope.launch(Dispatchers.IO) {
+            _isFetching.value = true
+            _fetchError.value = null
+            val dateStr = formatDate(_selectedDateMillis.value)
+            val result = repository.fetchEvent(dateStr)
+            if (result.isSuccess) {
+                val event = result.getOrDefault(EventDto())
+                _eventPlayers.value = event.players
+                repository.saveEventPlayers(event.players.map { it.name })
+            } else {
+                _fetchError.value = result.exceptionOrNull()?.message
+                _eventPlayers.value = emptyList()
+            }
+            _isFetching.value = false
+        }
+    }
+
+    companion object {
+        private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+
+        fun todayMillis(): Long {
+            val cal = Calendar.getInstance()
+            cal.set(Calendar.HOUR_OF_DAY, 0)
+            cal.set(Calendar.MINUTE, 0)
+            cal.set(Calendar.SECOND, 0)
+            cal.set(Calendar.MILLISECOND, 0)
+            return cal.timeInMillis
+        }
+
+        fun formatDate(millis: Long): String = dateFormat.format(millis)
+    }
 
     init {
         connectIQManager.setOnMessageReceivedListener { message ->
@@ -66,6 +120,14 @@ class MatchSetupViewModel(
             _teamA.value = (_teamA.value + players).distinctBy { it.id }
         } else {
             _teamB.value = (_teamB.value + players).distinctBy { it.id }
+        }
+    }
+
+    fun addEventPlayersToTeam(players: List<PlayerEntity>, team: String) {
+        if (team == "A") {
+            _teamA.value = (_teamA.value + players).distinctBy { it.name }
+        } else {
+            _teamB.value = (_teamB.value + players).distinctBy { it.name }
         }
     }
 

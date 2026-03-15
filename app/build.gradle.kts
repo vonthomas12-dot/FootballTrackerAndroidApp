@@ -1,9 +1,15 @@
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     id("com.google.devtools.ksp")
+}
+
+val localProperties = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) load(file.inputStream())
 }
 
 android {
@@ -22,6 +28,9 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        buildConfigField("String", "BASE_URL", "\"${localProperties["BASE_URL"]}\"")
+        buildConfigField("String", "API_KEY", "\"${localProperties["API_KEY"]}\"")
     }
 
     buildTypes {
@@ -39,6 +48,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -57,7 +67,7 @@ dependencies {
     implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.ciq.companion.app.sdk)
     implementation(libs.androidx.navigation.compose)
-    
+
     implementation(libs.retrofit)
     implementation(libs.retrofit.serialization)
     implementation(libs.okhttp)

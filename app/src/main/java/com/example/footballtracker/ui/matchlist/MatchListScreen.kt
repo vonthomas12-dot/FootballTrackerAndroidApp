@@ -4,7 +4,9 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -36,6 +38,7 @@ fun MatchListScreen(
     onMatchClick: (Long) -> Unit = {}
 ) {
     val matches by viewModel.matches.collectAsState()
+    val isUploading by viewModel.isUploading.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) {
@@ -49,6 +52,7 @@ fun MatchListScreen(
     }
 
     var matchToDelete by remember { mutableStateOf<MatchEntity?>(null) }
+    var matchToUploadAgain by remember { mutableStateOf<MatchWithPlayersAndTeam?>(null) }
 
     if (matchToDelete != null) {
         AlertDialog(
@@ -70,44 +74,84 @@ fun MatchListScreen(
         )
     }
 
+    if (matchToUploadAgain != null) {
+        AlertDialog(
+            onDismissRequest = { matchToUploadAgain = null },
+            title = { Text("Upload again?") },
+            text = { Text("This match has already been uploaded. Do you want to upload it again?") },
+            confirmButton = {
+                Button(onClick = {
+                    matchToUploadAgain?.let { viewModel.uploadMatch(it) }
+                    matchToUploadAgain = null
+                }) { Text("Upload again") }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { matchToUploadAgain = null }) { Text("Cancel") }
+            }
+        )
+    }
+
     val dateFormatter = remember { SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()) }
 
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        topBar = {
-            TopAppBar(
-                title = { Text("Matches", style = MaterialTheme.typography.titleLarge) },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                )
-            )
-        }
-    ) { innerPadding ->
-        if (matches.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize().padding(innerPadding),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "No matches yet",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            snackbarHost = { SnackbarHost(snackbarHostState) },
+            topBar = {
+                TopAppBar(
+                    title = { Text("Matches", style = MaterialTheme.typography.titleLarge) },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    )
                 )
             }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(innerPadding),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(matches) { matchWithPlayers ->
-                    MatchCard(
-                        matchWithPlayers = matchWithPlayers,
-                        dateFormatter = dateFormatter,
-                        onDelete = { matchToDelete = matchWithPlayers.match },
-                        onUpload = { viewModel.uploadMatch(matchWithPlayers) }
+        ) { innerPadding ->
+            if (matches.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize().padding(innerPadding),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No matches yet",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize().padding(innerPadding),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(matches) { matchWithPlayers ->
+                        MatchCard(
+                            matchWithPlayers = matchWithPlayers,
+                            dateFormatter = dateFormatter,
+                            onDelete = { matchToDelete = matchWithPlayers.match },
+                            onUpload = {
+                                if (matchWithPlayers.match.isUploaded) {
+                                    matchToUploadAgain = matchWithPlayers
+                                } else {
+                                    viewModel.uploadMatch(matchWithPlayers)
+                                }
+                            }
+                        )
+                    }
+                }
+            }
+        }
+
+        if (isUploading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.4f))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) { /* block all clicks */ },
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary)
             }
         }
     }
@@ -154,7 +198,6 @@ private fun MatchCard(
                 // Upload button
                 IconButton(
                     onClick = onUpload,
-                    enabled = !match.isUploaded,
                     modifier = Modifier.size(36.dp)
                 ) {
                     Icon(

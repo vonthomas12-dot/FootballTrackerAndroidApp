@@ -1,9 +1,12 @@
 package com.example.footballtracker.data.remote
 
+import com.example.footballtracker.BuildConfig
 import kotlinx.serialization.Serializable
 import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.GET
 import retrofit2.http.POST
+import retrofit2.http.Query
 
 @Serializable
 data class PlayerUploadDto(
@@ -23,11 +26,29 @@ data class MatchUploadDto(
     val players: List<PlayerUploadDto>
 )
 
+@Serializable
+data class EventPlayerDto(
+    val name: String,
+    val team: String? = null
+)
+
+@Serializable
+data class EventDto(
+    val eventId: Int? = null,
+    val date: String? = null,
+    val players: List<EventPlayerDto> = emptyList()
+)
+
 interface MatchApi {
-    @POST("matches/upload") // Update with your actual endpoint
+    @POST("match-result")
     suspend fun uploadMatch(@Body match: MatchUploadDto): Response<Unit>
 
+    @GET("event-players")
+    suspend fun getEvent(@Query("date") date: String): Response<EventDto>
+
     companion object {
-        const val BASE_URL = "https://micoapi/api/" // Update with your actual base URL
+        val BASE_URL get() = BuildConfig.BASE_URL
     }
 }
+
+

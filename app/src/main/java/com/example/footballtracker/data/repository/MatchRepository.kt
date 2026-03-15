@@ -2,9 +2,12 @@ package com.example.footballtracker.data.repository
 
 import com.example.footballtracker.data.local.dao.MatchDao
 import com.example.footballtracker.data.local.entity.*
+import com.example.footballtracker.data.remote.EventDto
 import com.example.footballtracker.data.remote.MatchApi
 import com.example.footballtracker.data.remote.MatchUploadDto
 import com.example.footballtracker.data.remote.PlayerUploadDto
+import com.example.footballtracker.BuildConfig
+import android.util.Log
 import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
@@ -21,7 +24,16 @@ class MatchRepository(
     
     private val retrofit = Retrofit.Builder()
         .baseUrl(MatchApi.BASE_URL)
-        .client(OkHttpClient.Builder().build())
+        .client(
+            OkHttpClient.Builder()
+                .addInterceptor { chain ->
+                    val request = chain.request().newBuilder()
+                        .addHeader("x-api-key", BuildConfig.API_KEY)
+                        .build()
+                    chain.proceed(request)
+                }
+                .build()
+        )
         .addConverterFactory(json.asConverterFactory(contentType))
         .build()
 
@@ -29,23 +41,25 @@ class MatchRepository(
 
     suspend fun saveMatch(match: MatchEntity, teamAPlayerNames: List<String>, teamBPlayerNames: List<String>): Long {
         val matchId = matchDao.insertMatch(match)
-        
-        val matchPlayers = mutableListOf<MatchPlayerEntity>()
 
-        teamAPlayerNames.forEach { name ->
-            val existingPlayer = matchDao.getPlayerByName(name)
-            val playerId = existingPlayer?.id ?: matchDao.insertPlayer(PlayerEntity(name = name))
+        val allNames = (teamAPlayerNames + teamBPlayerNames).distinct()
 
-            matchPlayers.add(MatchPlayerEntity(matchId = matchId, playerId = playerId, team = "A"))
-        }
+        // Single query to find which players already exist
+        val existingPlayers = matchDao.getPlayersByNames(allNames).associateBy { it.name }
 
-        teamBPlayerNames.forEach { name ->
-            val existingPlayer = matchDao.getPlayerByName(name)
-            val playerId = existingPlayer?.id ?: matchDao.insertPlayer(PlayerEntity(name = name))
+        // Insert only the new ones in bulk
+        val newPlayers = allNames
+            .filter { it !in existingPlayers }
+            .map { PlayerEntity(name = it) }
+        val newIds = if (newPlayers.isNotEmpty()) matchDao.insertPlayers(newPlayers) else emptyList()
 
-            matchPlayers.add(MatchPlayerEntity(matchId = matchId, playerId = playerId, team = "B"))
-        }
-        
+        // Build name -> id map combining existing and newly inserted
+        val nameToId = existingPlayers.mapValues { it.value.id }.toMutableMap()
+        newPlayers.forEachIndexed { index, player -> nameToId[player.name] = newIds[index] }
+
+        val matchPlayers = (teamAPlayerNames.map { MatchPlayerEntity(matchId, nameToId.getValue(it), "A") } +
+                            teamBPlayerNames.map { MatchPlayerEntity(matchId, nameToId.getValue(it), "B") })
+
         matchDao.insertMatchPlayers(matchPlayers)
         return matchId
     }
@@ -87,13 +101,27 @@ class MatchRepository(
                     )
                 }
             )
+            Log.d("MatchRepository", "Uploading match DTO: ${json.encodeToString(MatchUploadDto.serializer(), dto)}")
             val response = matchApi.uploadMatch(dto)
             if (response.isSuccessful) {
                 // Update local database status on success
                 matchDao.updateMatchUploadStatus(matchWithPlayers.match.matchId, true)
                 Result.success(Unit)
             } else {
-                Result.failure(Exception("Upload failed with code: ${response.code()}"))
+                Result.failure(Exception("Upload failed with code: ${response.code()} ${response.message()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun fetchEvent(date: String): Result<EventDto> {
+        return try {
+            val response = matchApi.getEvent(date)
+            if (response.isSuccessful) {
+                Result.success(response.body() ?: EventDto())
+            } else {
+                Result.failure(Exception("Fetch failed with code: ${response.code()} ${response.message()}"))
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -102,6 +130,12 @@ class MatchRepository(
 
     suspend fun addPlayer(player: PlayerEntity) {
         matchDao.insertPlayer(player)
+    }
+
+    suspend fun saveEventPlayers(names: List<String>) {
+        val existingNames = matchDao.getPlayersByNames(names).map { it.name }.toSet()
+        val newPlayers = names.filter { it !in existingNames }.map { PlayerEntity(name = it) }
+        if (newPlayers.isNotEmpty()) matchDao.insertPlayers(newPlayers)
     }
 
     suspend fun deleteMatch(match: MatchEntity) {
