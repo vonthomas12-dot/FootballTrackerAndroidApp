@@ -15,14 +15,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.example.footballtracker.connectiq.ConnectIQManager
-import com.example.footballtracker.data.repository.MatchRepository
+import com.example.footballtracker.FootballTrackerApplication
 import com.example.footballtracker.ui.matchlist.MatchListScreen
 import com.example.footballtracker.ui.matchlist.MatchListViewModel
 import com.example.footballtracker.ui.matchsetup.MatchSetupScreen
@@ -43,11 +44,9 @@ val items = listOf(
 )
 
 @Composable
-fun NavGraph(
-    connectIQManager: ConnectIQManager,
-    repository: MatchRepository
-) {
+fun NavGraph() {
     val navController = rememberNavController()
+    val app = LocalContext.current.applicationContext as FootballTrackerApplication
 
     Scaffold(
         bottomBar = {
@@ -76,19 +75,17 @@ fun NavGraph(
         NavHost(navController, startDestination = "setup", Modifier.padding(innerPadding)) {
 
             composable("setup") {
-                val viewModel = remember {
-                    MatchSetupViewModel(connectIQManager, repository)
-                }
+                val viewModel: MatchSetupViewModel = viewModel()
                 MatchSetupScreen(viewModel)
             }
 
             composable("matchList") {
-                val viewModel = remember { MatchListViewModel(repository) }
+                val viewModel = remember { MatchListViewModel(app.repository) }
                 MatchListScreen(viewModel = viewModel)
             }
 
             composable("players") {
-                val viewModel = remember { PlayersViewModel(repository) }
+                val viewModel = remember { PlayersViewModel(app.repository) }
                 PlayersScreen(viewModel = viewModel)
             }
         }
